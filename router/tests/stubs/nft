@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "nft $*" >> "$CALLS"
+exit 0

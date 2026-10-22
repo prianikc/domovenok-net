@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "logger $*" >> "$CALLS"
+exit 0

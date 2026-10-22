@@ -1,0 +1,25 @@
+#!/bin/sh /etc/rc.common
+# ДомовёнокNET: правила маршрутизации, домены для dnsmasq, туннель и сторож
+START=95
+STOP=10
+USE_PROCD=1
+L=/usr/lib/domovenok
+
+start_service() {
+  . $L/common.sh; . $L/rules.sh; . $L/presets.sh; . $L/tunnel.sh
+  with_lock
+  rules_apply
+  dnsmasq_apply
+  [ "$(state_get)" != off ] && [ -n "$(active)" ] && tunnel_up "$(active)"
+  lock -u "$LOCKF"; trap - EXIT
+  procd_open_instance watchdog
+  procd_set_param command /bin/sh $L/watchdog.sh loop
+  procd_set_param respawn
+  procd_close_instance
+}
+
+stop_service() {
+  . $L/common.sh; . $L/tunnel.sh
+  tunnel_down
+  nft delete table inet domovenok 2>/dev/null
+}

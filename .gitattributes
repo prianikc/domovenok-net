@@ -1,0 +1,5 @@
+# скрипты роутера - только LF, иначе sh на OpenWrt не запустит
+router/** text eol=lf
+*.cmd text eol=crlf
+*.cs text eol=crlf
+*.ico binary

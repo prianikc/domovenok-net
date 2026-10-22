@@ -1,0 +1,7 @@
+#!/bin/sh
+# wg show <dev> latest-handshakes: из $STUBDATA/hs.<dev>, иначе рукопожатия не было
+echo "wg $*" >> "$CALLS"
+if [ "$1" = show ] && [ "$3" = latest-handshakes ]; then
+  if [ -f "$STUBDATA/hs.$2" ]; then cat "$STUBDATA/hs.$2"; else printf 'peer\t0\n'; fi
+fi
+exit 0

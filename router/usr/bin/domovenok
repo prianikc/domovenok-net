@@ -1,0 +1,98 @@
+#!/bin/sh
+# ДомовёнокNET: команда управления роутером. Ответ — одна строка JSON (кроме stats).
+#   status | state off|list|full | restart | apply | diag | stats | version
+#   profile list | add <имя> <awg|wg> (конфиг в stdin) | use <имя> | rm <имя>
+#   presets list | set <id> on|off | update
+#   mine list | add|rm domain|ip <значение>
+L=${DOMOVENOK_LIB:-/usr/lib/domovenok}
+for f in common rules presets tunnel watchdog stats diag; do . "$L/$f.sh"; done
+
+b(){ if "$@"; then echo true; else echo false; fi; }
+case "$1 $2" in
+  state*|restart*|apply*|"profile add"|"profile use"|"profile rm"|"presets set"|"presets update"|"mine add"|"mine rm") with_lock ;;
+esac
+apply_all(){ rules_apply >/dev/null 2>&1; dnsmasq_apply; }
+ok(){ printf '{"ok":true%s}\n' "${1:+,$1}"; }
+
+case "$1" in
+  status)
+    A=$(active); D=$(tun_dev); S=$(state_get)
+    UP=false; [ -n "$D" ] && ip link show "$D" >/dev/null 2>&1 && UP=true
+    H=$(b is_healthy); FB=false; [ "$S" = list ] && [ "$H" = false ] && FB=true
+    V=$(cfg_get VERSION)
+    ok "\"state\":\"$S\",\"profile\":$(json_str "$A"),\"type\":\"$(prof_type "$A")\",\"iface\":\"$D\",\"up\":$UP,\"hs_age\":$(hs_age),\"healthy\":$H,\"dns_fallback\":$FB,\"endpoint\":$(json_str "$(endpoint_ip)"),\"version\":$(json_str "$V")" ;;
+  state)
+    case "$2" in off|list|full) ;; *) die "неизвестное состояние: $2";; esac
+    echo "$2" > "$ETC/state"
+    apply_all
+    if [ "$2" = off ]; then tunnel_down
+    elif [ -n "$(active)" ] && ! ip link show "$(tun_dev)" >/dev/null 2>&1; then tunnel_up "$(active)"; fi
+    wd_tick
+    log "состояние: $2"
+    ok "\"state\":\"$2\"" ;;
+  restart)
+    A=$(active); [ -n "$A" ] || die "нет активного профиля"
+    [ "$(state_get)" != off ] || die "туннель выключен"
+    try_profile "$A" >/dev/null 2>&1
+    ok "\"profile\":$(json_str "$A"),\"healthy\":$(b is_healthy)" ;;
+  apply)
+    apply_all
+    ok "\"state\":\"$(state_get)\",\"tun4\":$(tun4_elements | wc -l)" ;;
+  diag) diag_json ;;
+  stats) stats_loop ;;
+  version) ok "\"version\":$(json_str "$(cfg_get VERSION)")" ;;
+  profile)
+    case "$2" in
+      list)
+        P=$(for f in "$PROF"/*.awg "$PROF"/*.conf; do
+              [ -f "$f" ] || continue; n=${f##*/}; t=awg; [ "${n##*.}" = conf ] && t=wg
+              printf '{"name":%s,"type":"%s"}\n' "$(json_str "${n%.*}")" "$t"
+            done | awk '{ printf "%s%s", (NR > 1 ? "," : ""), $0 }')
+        ok "\"active\":$(json_str "$(active)"),\"profiles\":[$P]" ;;
+      add)
+        is_profile_name "$3" || die "недопустимое имя профиля"
+        case "$4" in awg) E=awg;; wg) E=conf;; *) die "тип профиля: awg или wg";; esac
+        mkdir -p "$PROF"; cat > "$RUN/profile.new"
+        grep -q '^\[Interface\]' "$RUN/profile.new" || { rm -f "$RUN/profile.new"; die "в профиле нет секции [Interface]"; }
+        rm -f "$PROF/$3.awg" "$PROF/$3.conf"
+        mv "$RUN/profile.new" "$PROF/$3.$E"; chmod 600 "$PROF/$3.$E"
+        ok "\"name\":$(json_str "$3")" ;;
+      use) profile_use "$3" ;;
+      rm)
+        is_profile_name "$3" || die "недопустимое имя профиля"
+        [ "$3" = "$(active)" ] && die "нельзя удалить активный профиль"
+        rm -f "$PROF/$3.awg" "$PROF/$3.conf"; ok ;;
+      *) die "profile list|add|use|rm" ;;
+    esac ;;
+  presets)
+    case "$2" in
+      list) ok "\"presets\":$(presets_list_json)" ;;
+      set)
+        case "$4" in on|off) ;; *) die "presets set <id> on|off";; esac
+        presets_set "$3" "$4" || die "нет подборки $3"
+        [ "$4" = on ] && [ ! -f "$CACHE/$3.updated" ] && presets_update "$3" >/dev/null
+        apply_all; ok ;;
+      update)
+        shift 2; R=$(presets_update "$@")
+        apply_all
+        U=$(echo "$R" | sed -n 's/^updated //p' | json_arr_lines); F=$(echo "$R" | sed -n 's/^failed //p' | json_arr_lines)
+        ok "\"updated\":$U,\"failed\":$F" ;;
+      *) die "presets list|set|update" ;;
+    esac ;;
+  mine)
+    case "$2" in
+      list) ok "\"domains\":$(clean_list "$ETC/mine-domains.txt" | json_arr_lines),\"ips\":$(clean_list "$ETC/mine-ips.txt" | json_arr_lines)" ;;
+      add|rm)
+        case "$3" in
+          domain) F=$ETC/mine-domains.txt; V=$(printf '%s' "$4" | tr 'A-Z' 'a-z'); is_domain "$V" || die "это не похоже на адрес сайта" ;;
+          ip) F=$ETC/mine-ips.txt; V=$4; is_ipv4_or_cidr "$V" || die "это не похоже на IP-адрес или подсеть" ;;
+          *) die "mine add|rm domain|ip <значение>" ;;
+        esac
+        clean_list "$F" | grep -vxF "$V" > "$RUN/mine.tmp"
+        [ "$2" = add ] && echo "$V" >> "$RUN/mine.tmp"
+        mv "$RUN/mine.tmp" "$F"
+        apply_all; ok ;;
+      *) die "mine list|add|rm" ;;
+    esac ;;
+  *) die "неизвестная команда: $1" ;;
+esac

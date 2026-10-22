@@ -1,0 +1,13 @@
+# Подборки ДомовёнокNET: id|Название|источники доменов (через ;)|источники подсетей (через ;)
+# own/<файл> — списки из этого репозитория (папка presets/own)
+blocked_ru|Всё заблокированное в РФ|https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/inside-raw.lst|
+youtube|YouTube|https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Services/youtube.lst|
+telegram|Telegram|https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Services/telegram.lst|https://core.telegram.org/resources/cidr.txt
+discord|Discord|https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Services/discord.lst|https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Subnets/IPv4/discord.lst
+meta|Instagram и Facebook|https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Services/meta.lst|https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Subnets/IPv4/meta.lst
+twitter|X (Twitter)|https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Services/twitter.lst|https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Subnets/IPv4/twitter.lst
+tiktok|TikTok|https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Services/tiktok.lst|
+google_ai|Gemini и Google AI|https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Services/google_ai.lst|
+anthropic|Claude (Anthropic)|own/anthropic.lst|own/anthropic.subnets
+openai|ChatGPT (OpenAI)|own/openai.lst|
+jetbrains|JetBrains|own/jetbrains.lst|

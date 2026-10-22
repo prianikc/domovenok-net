@@ -1,0 +1,4 @@
+#!/bin/sh
+echo "nslookup $*" >> "$CALLS"
+[ -f "$STUBDATA/dns.fail" ] && exit 1
+printf 'Name: %s\nAddress: 9.9.9.9\n' "$1"

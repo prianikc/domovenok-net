@@ -1,0 +1,6 @@
+#!/bin/sh
+# apk info -e <пакет>: нет пакета, если он есть в $STUBDATA/apk.missing
+echo "apk $*" >> "$CALLS"
+for a; do last=$a; done
+grep -qx "$last" "$STUBDATA/apk.missing" 2>/dev/null && exit 1
+exit 0

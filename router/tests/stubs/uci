@@ -1,0 +1,20 @@
+#!/bin/sh
+# uci: фиксированные ответы; секции dhcp.@ipset[N] берутся из $STUBDATA/ipsets (строка = значение table)
+echo "uci $*" >> "$CALLS"
+case "$*" in
+  *"dhcp.@dnsmasq[0].server"*) echo "1.1.1.1 8.8.8.8"; exit 0 ;;
+  *"network.wan.device"*) echo "wan"; exit 0 ;;
+  *"show network"*) cat "$STUBDATA/uci.network" 2>/dev/null; exit 0 ;;
+esac
+F="$STUBDATA/ipsets"
+N=$(echo "$*" | sed -n 's/.*dhcp\.@ipset\[\([0-9]*\)\].*/\1/p')
+if [ -n "$N" ] && [ -f "$F" ]; then
+  L=$((N + 1))
+  case "$*" in
+    *" get "*) sed -n "${L}p" "$F" | grep . || exit 1 ;;
+    *"delete "*) sed -i "${L}d" "$F" ;;
+  esac
+  exit 0
+fi
+case "$*" in *" get "*) exit 1 ;; esac
+exit 0

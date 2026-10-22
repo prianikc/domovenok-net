@@ -1,0 +1,10 @@
+#!/bin/sh
+# ДомовёнокNET: таблица 200 = «напрямую через провайдера» для трафика с меткой 0x2
+[ "$INTERFACE" = "wan" ] || exit 0
+case "$ACTION" in
+  ifup|ifupdate)
+    GW=$(ubus call network.interface.wan status 2>/dev/null | jsonfilter -e '@.route[@.target="0.0.0.0"].nexthop' 2>/dev/null | head -1)
+    [ -n "$GW" ] && ip route replace default via "$GW" dev "$DEVICE" table 200 && logger -t domovenok "таблица 200: default via $GW"
+    ;;
+  ifdown) ip route flush table 200 2>/dev/null ;;
+esac

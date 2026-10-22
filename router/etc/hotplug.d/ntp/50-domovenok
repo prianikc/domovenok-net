@@ -1,0 +1,14 @@
+#!/bin/sh
+# ДомовёнокNET: после загрузки часы роутера отстают, и сервер отвергает рукопожатие.
+# Как только время синхронизировалось, один раз переподнимаем туннель, если он не работает.
+[ "$ACTION" = "stratum" ] || exit 0
+[ -e /tmp/domovenok/timesync-done ] && exit 0
+L=/usr/lib/domovenok
+. $L/common.sh; . $L/tunnel.sh
+touch "$RUN/timesync-done"
+[ "$(state_get)" != off ] || exit 0
+is_healthy && exit 0
+A=$(active); [ -n "$A" ] || exit 0
+with_lock
+log "время синхронизировано, переподнимаю туннель $A"
+tunnel_up "$A"

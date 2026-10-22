@@ -1,0 +1,30 @@
+# сборка
+/bin/
+/obj/
+*.exe
+*.pdb
+
+# секреты: ключи и конфиги туннелей НИКОГДА не коммитим
+*_key
+*_key.pub
+*.pem
+*.key
+id_*
+*.conf
+*.awg
+*.vless
+*.ovpn
+config.ini
+
+# логи и резервные копии
+*.log
+*.log.old
+*.bak
+*.bak-*
+/.superpowers/
+
+# ДомовёнокNET
+.superpowers/
+node_modules/
+app/out/
+app/dist/

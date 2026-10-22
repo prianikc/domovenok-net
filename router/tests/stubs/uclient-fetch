@@ -1,0 +1,7 @@
+#!/bin/sh
+# uclient-fetch -q -T 30 -O <файл> <url>: копирует $STUBDATA/web/<последний сегмент url>
+echo "uclient-fetch $*" >> "$CALLS"
+while [ $# -gt 0 ]; do case "$1" in -O) out=$2; shift 2;; -q) shift;; -T) shift 2;; *) url=$1; shift;; esac; done
+src="$STUBDATA/web/${url##*/}"
+[ -f "$src" ] || exit 1
+cp "$src" "$out"
