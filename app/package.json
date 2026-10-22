@@ -1,6 +1,6 @@
 {
   "name": "domovenok-net",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "ДомовёнокNET — управление роутером OpenWrt и VPN",
   "main": "./out/main/index.js",
   "author": "prianikc",

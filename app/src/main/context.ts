@@ -6,6 +6,7 @@ import { Hub } from './hub'
 import { loadSettings, saveSettings, type Settings } from './settings'
 import { RouterClient } from './ssh/client'
 import { loadOrCreateAppKey, type SecretStore } from './ssh/keys'
+import { ensureAppKey } from './ssh/pairing'
 import type { Windows } from './windows'
 
 export interface Context {
@@ -33,6 +34,7 @@ export function createContext(windows: Windows): Context {
   const hub = new Hub(async () => {
     const c = new RouterClient({ host: settings.routerHost, privateKey: appKey.privateKey, hostKeySha256: settings.hostKeySha256 })
     await c.connect()
+    await ensureAppKey(c, appKey.publicKey).catch(() => undefined) // для роутеров, сопряжённых без ключа
     return c
   })
   return {

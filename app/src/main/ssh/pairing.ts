@@ -55,15 +55,23 @@ async function tryConnect(host: string, deps: PairDeps, auth: { privateKey?: str
   }
 }
 
-async function installKey(c: RouterClient, publicKey: string): Promise<void> {
+/** Прописать ключ программы в authorized_keys (повторно — безопасно). Нужно и после входа «своим ключом»:
+ *  на роутере без пароля root dropbear пускает без проверки ключа, и без этого шага пароль потом запрёт программу. */
+export async function ensureAppKey(c: RouterClient, publicKey: string): Promise<void> {
   const pub = publicKey.trim()
   const f = '/etc/dropbear/authorized_keys'
-  await c.exec(`mkdir -p /etc/dropbear && touch ${f} && chmod 600 ${f} && (grep -qxF ${shq(pub)} ${f} || echo ${shq(pub)} >> ${f})`)
+  await c.exec(
+    `mkdir -p /etc/dropbear && touch ${f} && chmod 600 ${f} && ` +
+      `( grep -qxF ${shq(pub)} ${f} || { [ -s ${f} ] && [ -n "$(tail -c 1 ${f})" ] && echo >> ${f}; echo ${shq(pub)} >> ${f}; } )`
+  )
 }
 
 export async function pair(host: string, deps: PairDeps): Promise<PairResult> {
   const own = await tryConnect(host, deps, { privateKey: deps.appKey.privateKey })
-  if (own) return { ...own, method: 'app-key' }
+  if (own) {
+    await ensureAppKey(own.client, deps.appKey.publicKey)
+    return { ...own, method: 'app-key' }
+  }
 
   let found: { client: RouterClient; hostKeySha256: string } | null = null
   let method: PairMethod = 'legacy-key'
@@ -82,6 +90,6 @@ export async function pair(host: string, deps: PairDeps): Promise<PairResult> {
     found = await tryConnect(host, deps, { password })
   }
   if (!found) throw new Error('Не удалось войти на роутер: нужен пароль root')
-  await installKey(found.client, deps.appKey.publicKey)
+  await ensureAppKey(found.client, deps.appKey.publicKey)
   return { ...found, method }
 }

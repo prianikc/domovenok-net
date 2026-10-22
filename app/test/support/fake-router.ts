@@ -10,7 +10,7 @@ export interface FakeRouter {
   close(): Promise<void>
 }
 
-export async function startFakeRouter(o: { password?: string } = {}): Promise<FakeRouter> {
+export async function startFakeRouter(o: { password?: string; blank?: boolean } = {}): Promise<FakeRouter> {
   const hostKey = utils.generateKeyPairSync('ed25519').private
   const allowed: ParsedKey[] = []
   const commands: string[] = []
@@ -21,6 +21,7 @@ export async function startFakeRouter(o: { password?: string } = {}): Promise<Fa
 
   const server = new Server({ hostKeys: [hostKey] }, (client: Connection) => {
     client.on('authentication', (ctx) => {
+      if (ctx.method === 'none' && o.blank) return ctx.accept()
       if (ctx.method === 'password' && o.password !== undefined && ctx.password === o.password) return ctx.accept()
       if (ctx.method === 'publickey') {
         const k = allowed.find(

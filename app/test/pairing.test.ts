@@ -87,3 +87,17 @@ describe('pair when the router is unreachable', () => {
     expect(asked).toBe(0)
   })
 })
+
+describe('pair on a router without a root password', () => {
+  it('still installs the app key, so a password set later does not lock the app out', async () => {
+    router = await startFakeRouter({ blank: true })
+    const r = await pair('127.0.0.1', {
+      port: router.port,
+      appKey: { privateKey: appKey.private, publicKey: appKey.public },
+      legacyKeys: [],
+      askPassword: async () => null
+    })
+    r.client.close()
+    expect(router.commands.some((c) => c.includes(appKey.public.trim()) && c.includes('authorized_keys'))).toBe(true)
+  })
+})
