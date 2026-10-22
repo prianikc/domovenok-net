@@ -1,7 +1,8 @@
-// Число, плавно перетекающее к новому значению (~300 мс).
+// Число, плавно перетекающее к новому значению. Новые данные приходят раз в секунду,
+// поэтому переход длится почти всю секунду — цифра всё время в движении, без рывков.
 import { useEffect, useRef, useState } from 'react'
 
-export function AnimatedNumber({ value }: { value: number }): React.JSX.Element {
+export function AnimatedNumber({ value, ms = 950 }: { value: number; ms?: number }): React.JSX.Element {
   const [shown, setShown] = useState(value)
   const from = useRef(value)
   useEffect(() => {
@@ -9,14 +10,14 @@ export function AnimatedNumber({ value }: { value: number }): React.JSX.Element 
     const a = from.current
     let raf = 0
     const tick = (t: number): void => {
-      const k = Math.min(1, (t - start) / 300)
-      const v = a + (value - a) * (1 - (1 - k) ** 3)
+      const k = Math.min(1, (t - start) / ms)
+      const v = a + (value - a) * (1 - (1 - k) ** 2)
       setShown(v)
       from.current = v
       if (k < 1) raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [value])
+  }, [value, ms])
   return <>{shown.toFixed(1)}</>
 }

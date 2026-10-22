@@ -4,7 +4,7 @@ import { AnimatedNumber } from './components/AnimatedNumber'
 import { SpeedChart } from './components/SpeedChart'
 import { StatusPill } from './components/StatusPill'
 import { Tile } from './components/Tile'
-import { STATE_LABEL, dn, fmt, useLive } from './lib'
+import { STATE_LABEL, dn, useLive } from './lib'
 
 const NEXT: Record<TunnelState, TunnelState> = { list: 'full', full: 'off', off: 'list' }
 
@@ -21,7 +21,7 @@ export function Mini(): React.JSX.Element {
         <div className="big" style={{ fontSize: 44 }}><AnimatedNumber value={rates?.down ?? 0} /></div>
         <div className="muted small">
           Мбит/с ↓<br />
-          <span className="up">↑ {fmt(rates?.up)}</span>
+          <span className="up">↑ <AnimatedNumber value={rates?.up ?? 0} /></span>
         </div>
       </div>
       <SpeedChart points={history} height={40} />

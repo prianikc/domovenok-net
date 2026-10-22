@@ -6,7 +6,7 @@ import { SpeedChart } from '../components/SpeedChart'
 import { StateSwitch } from '../components/StateSwitch'
 import { StatusPill } from '../components/StatusPill'
 import { Tile } from '../components/Tile'
-import { STATE_LABEL, call, dn, fmt, type Live } from '../lib'
+import { STATE_LABEL, call, dn, type Live } from '../lib'
 
 export function Overview({ live, onCheck }: { live: Live; onCheck: () => void }): React.JSX.Element {
   const { status, connection, rates, history, ping } = live
@@ -23,7 +23,7 @@ export function Overview({ live, onCheck }: { live: Live; onCheck: () => void })
       </div>
       <div className="muted" style={{ fontSize: 15 }}>Мбит/с загрузка</div>
       <div className="up" style={{ fontSize: 20, marginTop: 4 }}>
-        ↑ {fmt(rates?.up)} <span className="muted" style={{ fontSize: 13 }}>Мбит/с отдача</span>
+        ↑ <AnimatedNumber value={rates?.up ?? 0} /> <span className="muted" style={{ fontSize: 13 }}>Мбит/с отдача</span>
       </div>
       <div style={{ width: '90%', marginTop: 10 }}>
         <SpeedChart points={history} height={90} />
@@ -35,8 +35,8 @@ export function Overview({ live, onCheck }: { live: Live; onCheck: () => void })
       </div>
       <div className="row" style={{ marginTop: 14 }}>
         <Tile label="Режим">{status ? STATE_LABEL[status.state] : '—'}</Tile>
-        <Tile label="Через VPN"><span className="ok-c">{fmt(rates?.vpnDown)} Мбит/с</span></Tile>
-        <Tile label="Напрямую"><span className="dn-c">{fmt(rates?.directDown)} Мбит/с</span></Tile>
+        <Tile label="Через VPN"><span className="ok-c"><AnimatedNumber value={rates?.vpnDown ?? 0} /> Мбит/с</span></Tile>
+        <Tile label="Напрямую"><span className="dn-c"><AnimatedNumber value={rates?.directDown ?? 0} /> Мбит/с</span></Tile>
         <Tile label="Пинг до сервера">{ping === null ? '—' : ping < 0 ? 'нет ответа' : `${ping} мс`}</Tile>
       </div>
       <div style={{ marginTop: 18, display: 'flex', gap: 12, alignItems: 'center' }}>
