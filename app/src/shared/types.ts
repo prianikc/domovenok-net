@@ -31,6 +31,14 @@ export interface DiagResult {
   message: string
 }
 
+/** Итог добавления списка: сколько новых сайтов и IP, сколько уже было, что не понято. */
+export interface MineAdded {
+  domains: number
+  ips: number
+  existed: number
+  bad: string[]
+}
+
 export type ImportErrorCode = 'not_vpn' | 'admin_profile' | 'no_config' | 'bad_config'
 
 export interface ImportedProfile {

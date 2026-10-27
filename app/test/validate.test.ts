@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isProfileName, normalizeDomain, normalizeIp, toProfileName } from '../src/shared/validate'
+import { isProfileName, normalizeDomain, normalizeIp, parseEntries, toProfileName } from '../src/shared/validate'
 
 describe('normalizeDomain', () => {
   it('strips scheme, www, path and case', () => {
@@ -19,6 +19,32 @@ describe('normalizeDomain', () => {
   })
   it('drops a port', () => {
     expect(normalizeDomain('example.org:8443')).toBe('example.org')
+  })
+  it('drops a leading wildcard or dot — subdomains are covered anyway', () => {
+    expect(normalizeDomain('*.nexusmods.com')).toBe('nexusmods.com')
+    expect(normalizeDomain('.nexusmods.com')).toBe('nexusmods.com')
+    expect(normalizeDomain('https://*.NexusMods.com/x')).toBe('nexusmods.com')
+  })
+  it('rejects a wildcard in the middle', () => {
+    expect(normalizeDomain('a.*.com')).toBeNull()
+  })
+})
+
+describe('parseEntries', () => {
+  it('splits by lines, commas, spaces and semicolons and sorts sites from IPs', () => {
+    const r = parseEntries('*.nexusmods.com, nexus-cdn.com\n104.16.0.0/12; 1.2.3.4  https://www.example.org/page')
+    expect(r).toEqual({
+      domains: ['nexusmods.com', 'nexus-cdn.com', 'example.org'],
+      ips: ['104.16.0.0/12', '1.2.3.4'],
+      bad: []
+    })
+  })
+  it('skips comments and empty lines', () => {
+    expect(parseEntries('# для nexus\n\n  a.com  # основной\r\n')).toEqual({ domains: ['a.com'], ips: [], bad: [] })
+  })
+  it('collects what it did not understand and drops duplicates', () => {
+    const r = parseEntries('a.com A.com localhost 300.1.1.1 a.com`x`')
+    expect(r).toEqual({ domains: ['a.com'], ips: [], bad: ['localhost', '300.1.1.1', 'a.com`x`'] })
   })
 })
 

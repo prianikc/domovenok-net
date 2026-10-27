@@ -43,7 +43,7 @@ export function baseHandlers(ctx: Context): Partial<Handlers> {
     setPreset: (id, on) => hub.run((api) => api.setPreset(id, on)),
     updatePresets: () => hub.run((api) => api.updatePresets()),
     mine: () => hub.api().mine(),
-    addMine: (kind, value) => hub.run((api) => api.addMine(kind, value)),
+    addMineList: (text) => hub.run((api) => api.addMineList(text)),
     removeMine: (kind, value) => hub.run((api) => api.removeMine(kind, value)),
     diag: () => hub.run((api) => api.diag()),
     routerInfo: async () => {

@@ -93,6 +93,31 @@ presets_list_json(){
   printf ']'
 }
 
+# строки файла $1, которых нет в файле $2
+not_in(){ if [ -s "$2" ]; then grep -vxFf "$2" "$1"; else cat "$1"; fi; }
+
+# дописать в список $1 новые строки из $2; печатает, сколько добавлено
+mine_merge(){
+  clean_list "$1" > "$RUN/mine.old"
+  not_in "$2" "$RUN/mine.old" > "$RUN/mine.new"
+  cat "$RUN/mine.old" "$RUN/mine.new" > "$1"
+  echo $(( $(wc -l < "$RUN/mine.new") ))
+}
+
+# сайты и IP/подсети вперемешку из stdin (по строке) -> мои списки; непонятое не записывается
+mine_add_list(){
+  tr -d '\r' | tr 'A-Z' 'a-z' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -v '^$' | awk '!seen[$0]++' > "$RUN/mine.in"
+  [ "$(wc -l < "$RUN/mine.in")" -le 1000 ] || return 1
+  ipv4_filter < "$RUN/mine.in" > "$RUN/mine.ips"
+  grep -E "$DOMAIN_RE" "$RUN/mine.in" > "$RUN/mine.doms"
+  cat "$RUN/mine.ips" "$RUN/mine.doms" > "$RUN/mine.good"
+  BAD=$(not_in "$RUN/mine.in" "$RUN/mine.good" | json_arr_lines)
+  ND=$(mine_merge "$ETC/mine-domains.txt" "$RUN/mine.doms"); NI=$(mine_merge "$ETC/mine-ips.txt" "$RUN/mine.ips")
+  EX=$(( $(wc -l < "$RUN/mine.good") - ND - NI ))
+  rm -f "$RUN"/mine.*
+  printf '"domains":%s,"ips":%s,"existed":%s,"bad":%s' "$ND" "$NI" "$EX" "$BAD"
+}
+
 # домены «через туннель» для dnsmasq: по 50 на строку nftset
 dnsmasq_gen(){
   [ "$(state_get)" = off ] && return 0

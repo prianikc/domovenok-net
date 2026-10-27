@@ -3,13 +3,13 @@
 #   status | state off|list|full | restart | apply | diag | stats | version
 #   profile list | add <имя> <awg|wg> (конфиг в stdin) | use <имя> | rm <имя>
 #   presets list | set <id> on|off | update
-#   mine list | add|rm domain|ip <значение>
+#   mine list | add|rm domain|ip <значение> | add-list (сайты и IP по строке в stdin)
 L=${DOMOVENOK_LIB:-/usr/lib/domovenok}
 for f in common rules presets tunnel watchdog stats diag; do . "$L/$f.sh"; done
 
 b(){ if "$@"; then echo true; else echo false; fi; }
 case "$1 $2" in
-  state*|restart*|apply*|"profile add"|"profile use"|"profile rm"|"presets set"|"presets update"|"mine add"|"mine rm") with_lock ;;
+  state*|restart*|apply*|"profile add"|"profile use"|"profile rm"|"presets set"|"presets update"|"mine add"|"mine add-list"|"mine rm") with_lock ;;
 esac
 apply_all(){ rules_apply >/dev/null 2>&1; dnsmasq_apply; }
 ok(){ printf '{"ok":true%s}\n' "${1:+,$1}"; }
@@ -73,9 +73,9 @@ case "$1" in
         [ "$4" = on ] && [ ! -f "$CACHE/$3.updated" ] && presets_update "$3" >/dev/null
         apply_all; ok ;;
       update)
-        shift 2; R=$(presets_update "$@")
+        shift 2; UPD=$(presets_update "$@")
         apply_all
-        U=$(echo "$R" | sed -n 's/^updated //p' | json_arr_lines); F=$(echo "$R" | sed -n 's/^failed //p' | json_arr_lines)
+        U=$(echo "$UPD" | sed -n 's/^updated //p' | json_arr_lines); F=$(echo "$UPD" | sed -n 's/^failed //p' | json_arr_lines)
         ok "\"updated\":$U,\"failed\":$F" ;;
       *) die "presets list|set|update" ;;
     esac ;;
@@ -92,7 +92,10 @@ case "$1" in
         [ "$2" = add ] && echo "$V" >> "$RUN/mine.tmp"
         mv "$RUN/mine.tmp" "$F"
         apply_all; ok ;;
-      *) die "mine list|add|rm" ;;
+      add-list)
+        ADDED=$(mine_add_list) || { rm -f "$RUN"/mine.*; die "за один раз — не больше 1000 записей, разбейте список на части"; }
+        apply_all; ok "$ADDED" ;;
+      *) die "mine list|add|rm|add-list" ;;
     esac ;;
   *) die "неизвестная команда: $1" ;;
 esac

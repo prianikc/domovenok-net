@@ -113,3 +113,11 @@ ytimg.com" ]
   [ "$(cat "$(etc cache)/telegram.subnets")" = "91.108.4.0/22
 10.0.0.0/8" ]
 }
+
+@test "fix: presets update при включённом VPN сообщает о неудаче" {
+  echo list > "$(etc state)"
+  echo youtube > "$(etc presets.enabled)"
+  run sh "$REPO_ROUTER/usr/bin/domovenok" presets update youtube
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '"failed":\["youtube"\]'
+}

@@ -5,6 +5,8 @@ export function normalizeDomain(input: string): string | null {
   let s = input.trim().toLowerCase()
   if (!s || /[\s;'"`$|&<>\\]/.test(s)) return null
   s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//, '').split(/[/?#]/)[0].replace(/:\d+$/, '')
+  // *.site.com и .site.com — то же, что site.com: роутер и так ведёт все поддомены
+  s = s.replace(/^\*?\./, '')
   let host: string
   try {
     host = new URL('http://' + s).hostname
@@ -22,6 +24,26 @@ export function normalizeIp(input: string): string | null {
   if (m.slice(1, 5).some((o) => Number(o) > 255)) return null
   if (m[5] !== undefined && Number(m[5]) > 32) return null
   return s
+}
+
+/** Сколько записей можно добавить за один раз (то же ограничение на роутере). */
+export const MAX_ENTRIES = 1000
+
+/** Список вперемешку (строки, запятые, пробелы, ; и комментарии #) -> сайты, IP/подсети и непонятое. */
+export function parseEntries(text: string): { domains: string[]; ips: string[]; bad: string[] } {
+  const domains = new Set<string>()
+  const ips = new Set<string>()
+  const bad = new Set<string>()
+  const tokens = text.split(/\r?\n/).flatMap((line) => line.replace(/#.*/, '').split(/[\s,;]+/))
+  for (const t of tokens) {
+    if (!t) continue
+    const ip = normalizeIp(t)
+    const domain = ip ? null : normalizeDomain(t)
+    if (ip) ips.add(ip)
+    else if (domain) domains.add(domain)
+    else bad.add(t)
+  }
+  return { domains: [...domains], ips: [...ips], bad: [...bad] }
 }
 
 export function isProfileName(s: string): boolean {

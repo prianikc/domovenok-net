@@ -1,7 +1,6 @@
 // «Списки»: подборки сервисов и свои сайты/IP — всё это идёт через VPN.
 import { useCallback, useEffect, useState } from 'react'
-import type { Preset } from '../../../shared/types'
-import { normalizeDomain, normalizeIp } from '../../../shared/validate'
+import type { MineAdded, Preset } from '../../../shared/types'
 import { call, dn } from '../lib'
 
 function sampleText(p: Preset): string {
@@ -13,47 +12,79 @@ function updatedText(p: Preset): string {
   return p.updated ? `обновлено ${new Date(p.updated * 1000).toLocaleDateString('ru-RU')}` : 'ещё не скачано'
 }
 
-function MineList({
-  kind,
-  items,
-  placeholder,
-  invalid,
-  onChange
-}: {
-  kind: 'domain' | 'ip'
-  items: string[]
-  placeholder: string
-  invalid: string
-  onChange: () => void
-}): React.JSX.Element {
+function addedText(r: MineAdded): string {
+  const parts = [r.domains && `сайтов: ${r.domains}`, r.ips && `IP и подсетей: ${r.ips}`].filter(Boolean)
+  return [
+    parts.length ? `Добавлено ${parts.join(', ')}.` : 'Ничего нового не добавлено.',
+    r.existed ? `Уже были: ${r.existed}.` : '',
+    r.bad.length ? `Не понял: ${r.bad.length} — оставил в поле, поправьте.` : ''
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+/** Одно поле на всё: сайты, *.сайты, ссылки, IP и подсети — списком сразу. */
+function AddEntries({ onChange }: { onChange: () => void }): React.JSX.Element {
   const [value, setValue] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<MineAdded | null>(null)
   const [error, setError] = useState('')
   const add = async (): Promise<void> => {
-    const v = kind === 'domain' ? normalizeDomain(value) : normalizeIp(value)
-    if (!v) return setError(invalid)
+    if (!value.trim() || busy) return
+    setBusy(true)
     setError('')
+    setResult(null)
     try {
-      await call(dn().addMine(kind, v))
-      setValue('')
+      const r = await call(dn().addMineList(value))
+      setResult(r)
+      setValue(r.bad.join('\n'))
       onChange()
     } catch (e) {
       setError((e as Error).message)
+    } finally {
+      setBusy(false)
     }
   }
   return (
     <>
-      <div className="row">
-        <input
-          type="text"
-          value={value}
-          placeholder={placeholder}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && void add()}
-        />
-        <button onClick={() => void add()}>Добавить</button>
+      <textarea
+        rows={5}
+        style={{ resize: 'vertical' }}
+        value={value}
+        placeholder={'Сайты, IP и подсети — по одному в строке или через запятую.\nНапример: *.nexusmods.com, nexus-cdn.com, 104.16.0.0/12'}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && (e.ctrlKey || e.metaKey) && void add()}
+      />
+      <div className="row" style={{ marginTop: 8, alignItems: 'center' }}>
+        <button disabled={busy} onClick={() => void add()}>
+          {busy ? 'Добавляю…' : 'Добавить'}
+        </button>
+        <span className="small muted">Ctrl+Enter — тоже добавить</span>
       </div>
+      {result && <div className={result.bad.length ? 'err' : 'small muted'}>{addedText(result)}</div>}
       {error && <div className="err">{error}</div>}
-      <div className="list" style={{ marginTop: 8 }}>
+    </>
+  )
+}
+
+function MineItems({
+  title,
+  kind,
+  items,
+  onChange
+}: {
+  title: string
+  kind: 'domain' | 'ip'
+  items: string[]
+  onChange: () => void
+}): React.JSX.Element | null {
+  if (!items.length) return null
+  return (
+    <>
+      <div className="small muted" style={{ margin: '12px 0 6px' }}>
+        {title}: {items.length}
+      </div>
+      <div className="list">
         {items.map((d) => (
           <div className="item" key={d}>
             <span className="grow">{d}</span>
@@ -130,28 +161,11 @@ export function Lists(): React.JSX.Element {
       </div>
 
       <div className="section">
-        <h3>Мои сайты</h3>
-        <MineList
-          kind="domain"
-          items={mine.domains}
-          placeholder="Например: youtube.com"
-          invalid="Это не похоже на адрес сайта"
-          onChange={load}
-        />
+        <h3>Мои сайты и адреса — через VPN</h3>
+        <AddEntries onChange={load} />
+        <MineItems title="Сайты" kind="domain" items={mine.domains} onChange={load} />
+        <MineItems title="IP и подсети" kind="ip" items={mine.ips} onChange={load} />
       </div>
-
-      <details className="section">
-        <summary className="small muted" style={{ cursor: 'pointer', marginBottom: 10 }}>
-          Дополнительно: IP и подсети
-        </summary>
-        <MineList
-          kind="ip"
-          items={mine.ips}
-          placeholder="Пример: 1.2.3.4 или 1.2.3.0/24"
-          invalid="Это не похоже на IP-адрес или подсеть"
-          onChange={load}
-        />
-      </details>
 
       {error && <div className="err">{error}</div>}
       <div className="note">
