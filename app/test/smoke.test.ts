@@ -8,6 +8,6 @@ describe('config', () => {
 
   it('keeps the repository as owner/name', () => {
     expect(REPO).toMatch(/^[^/]+\/[^/]+$/)
-    expect(ROUTER_VERSION).toBe('2.0.0')
+    expect(ROUTER_VERSION).toBe('2.0.3')
   })
 })
