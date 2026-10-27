@@ -1,6 +1,6 @@
 // Контракт между окнами и main-процессом: window.domovenok.
 import type { Rates } from './speed'
-import type { Connection, DiagResult, Preset, Status, TunnelState } from './types'
+import type { Connection, DiagResult, MineAdded, Preset, Status, TunnelState } from './types'
 import type { MigrationPlan } from './migration-plan'
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string }
@@ -38,7 +38,7 @@ export interface DomovenokCalls {
   setPreset(id: string, on: boolean): void
   updatePresets(): { updated: string[]; failed: string[] }
   mine(): { domains: string[]; ips: string[] }
-  addMine(kind: 'domain' | 'ip', value: string): void
+  addMineList(text: string): MineAdded
   removeMine(kind: 'domain' | 'ip', value: string): void
   diag(): DiagResult
   routerInfo(): { host: string; version: string; model: string; legacy: boolean }
@@ -76,7 +76,7 @@ export const EVENTS = ['status', 'connection', 'rates', 'ping', 'navigate', 'pai
 
 export const CALLS: (keyof DomovenokCalls)[] = [
   'getStatus', 'getConnection', 'setState', 'restart', 'profiles', 'importProfileFromPath', 'importProfileString',
-  'useProfile', 'removeProfile', 'presets', 'setPreset', 'updatePresets', 'mine', 'addMine', 'removeMine', 'diag',
+  'useProfile', 'removeProfile', 'presets', 'setPreset', 'updatePresets', 'mine', 'addMineList', 'removeMine', 'diag',
   'routerInfo', 'redeploy', 'openRouterWeb', 'openMain', 'closeMini', 'getAutostart', 'setAutostart',
   'pairingState', 'pairingStart', 'pairingSubmitPassword', 'migrationPlan', 'migrationCommit', 'migrationRollback',
   'migrationLastBackup'

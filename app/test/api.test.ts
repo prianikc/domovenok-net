@@ -20,17 +20,45 @@ describe('RouterApi', () => {
     await expect(api.status()).rejects.toThrow()
   })
 
-  it('never sends an invalid site to the router', async () => {
+  it('sends a mixed list through stdin, one entry per line', async () => {
+    const link = new FakeLink(() => '{"ok":true,"domains":2,"ips":1,"existed":1,"bad":[]}')
+    const r = await new RouterApi(link).addMineList('*.NexusMods.com, nexus-cdn.com\n104.16.0.0/12 old.com')
+    expect(link.calls[0]).toEqual({
+      cmd: 'domovenok mine add-list',
+      stdin: 'nexusmods.com\nnexus-cdn.com\nold.com\n104.16.0.0/12\n'
+    })
+    expect(r).toEqual({ domains: 2, ips: 1, existed: 1, bad: [] })
+  })
+
+  it('never sends junk to the router and returns it as not understood', async () => {
+    const link = new FakeLink(() => '{"ok":true,"domains":1,"ips":0,"existed":0,"bad":[]}')
+    const r = await new RouterApi(link).addMineList('a.com reboot`x`')
+    expect(link.calls[0].stdin).toBe('a.com\n')
+    expect(r.bad).toEqual(['reboot`x`'])
+  })
+
+  it('does not call the router when nothing was understood', async () => {
     const link = new FakeLink()
-    const api = new RouterApi(link)
-    await expect(api.addMine('domain', 'a.com;reboot')).rejects.toThrow()
+    expect(await new RouterApi(link).addMineList('localhost')).toEqual({ domains: 0, ips: 0, existed: 0, bad: ['localhost'] })
     expect(link.calls).toHaveLength(0)
   })
 
-  it('normalizes and quotes a site', async () => {
+  it('refuses more than 1000 entries at once', async () => {
     const link = new FakeLink()
-    await new RouterApi(link).addMine('domain', 'https://www.YouTube.com/x')
-    expect(link.calls[0].cmd).toBe("domovenok mine add domain 'youtube.com'")
+    const many = Array.from({ length: 1001 }, (_, i) => `s${i}.com`).join('\n')
+    await expect(new RouterApi(link).addMineList(many)).rejects.toThrow('1000')
+    expect(link.calls).toHaveLength(0)
+  })
+
+  it('explains that old router scripts need an update', async () => {
+    const link = new FakeLink(() => '{"ok":false,"error":"mine list|add|rm"}')
+    await expect(new RouterApi(link).addMineList('a.com')).rejects.toThrow('Обновить скрипты на роутере')
+  })
+
+  it('normalizes and quotes a site on removal', async () => {
+    const link = new FakeLink()
+    await new RouterApi(link).removeMine('domain', 'https://www.YouTube.com/x')
+    expect(link.calls[0].cmd).toBe("domovenok mine rm domain 'youtube.com'")
   })
 
   it('sends a profile config through stdin', async () => {

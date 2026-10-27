@@ -2,8 +2,8 @@
 import type { EventEmitter } from 'node:events'
 import { z, type ZodType } from 'zod'
 import { shq } from '../../shared/shell'
-import type { DiagResult, ImportedProfile, Preset, Status, TunnelState } from '../../shared/types'
-import { isProfileName, normalizeDomain, normalizeIp } from '../../shared/validate'
+import type { DiagResult, ImportedProfile, MineAdded, Preset, Status, TunnelState } from '../../shared/types'
+import { isProfileName, MAX_ENTRIES, normalizeDomain, normalizeIp, parseEntries } from '../../shared/validate'
 
 /** То, что API нужно от соединения (RouterClient или подделка в тестах). */
 export interface RouterLink extends EventEmitter {
@@ -126,8 +126,25 @@ export class RouterApi {
     return this.link.execJson('domovenok mine list', z.object({ domains: z.array(z.string()), ips: z.array(z.string()) }))
   }
 
-  async addMine(kind: 'domain' | 'ip', value: string): Promise<void> {
-    await this.link.execJson(`domovenok mine add ${kind} ${shq(this.mineValue(kind, value))}`, ok, { timeoutMs: 60000 })
+  /** Сайты и IP/подсети вперемешку — одной командой; непонятое на роутер не уходит и возвращается в bad. */
+  async addMineList(text: string): Promise<MineAdded> {
+    const { domains, ips, bad } = parseEntries(text)
+    const entries = [...domains, ...ips]
+    if (entries.length > MAX_ENTRIES) throw new Error(`За один раз — не больше ${MAX_ENTRIES} записей, разбейте список на части`)
+    if (!entries.length) return { domains: 0, ips: 0, existed: 0, bad }
+    const r = await this.link
+      .execJson(
+        'domovenok mine add-list',
+        z.object({ domains: z.number(), ips: z.number(), existed: z.number(), bad: z.array(z.string()) }),
+        { stdin: entries.map((e) => e + '\n').join(''), timeoutMs: 60000 }
+      )
+      .catch((e: Error) => {
+        // старые скрипты не знают add-list и отвечают подсказкой «mine list|add|rm»
+        if (e.message === 'mine list|add|rm')
+          throw new Error('На роутере старые скрипты — нажмите «Обновить скрипты на роутере» на вкладке «Роутер»')
+        throw e
+      })
+    return { domains: r.domains, ips: r.ips, existed: r.existed, bad: [...bad, ...r.bad] }
   }
 
   async removeMine(kind: 'domain' | 'ip', value: string): Promise<void> {

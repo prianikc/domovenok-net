@@ -45,6 +45,31 @@ cli() { sh "$REPO_ROUTER/usr/bin/domovenok" "$@"; }
   [ "$(cat "$(etc mine-domains.txt)")" = b.com ]
 }
 
+@test "mine add-list: сайты и подсети вперемешку раскладываются по спискам" {
+  echo old.com > "$(etc mine-domains.txt)"
+  run sh -c "printf 'Nexusmods.com\r\nold.com\n104.16.0.0/12\n\n1.2.3.4\nnexus-cdn.com\nnexus-cdn.com\n' | sh '$REPO_ROUTER/usr/bin/domovenok' mine add-list"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '"domains":2,"ips":2,"existed":1,"bad":\[\]'
+  [ "$(cat "$(etc mine-domains.txt)")" = "$(printf 'old.com\nnexusmods.com\nnexus-cdn.com')" ]
+  [ "$(cat "$(etc mine-ips.txt)")" = "$(printf '104.16.0.0/12\n1.2.3.4')" ]
+  [ "$(grep -c '^nft -f ' "$CALLS")" -eq 1 ]
+}
+
+@test "mine add-list: непонятные строки не записываются и возвращаются" {
+  run sh -c "printf 'a.com\na.com;reboot\n300.1.1.1\n' | sh '$REPO_ROUTER/usr/bin/domovenok' mine add-list"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '"domains":1,"ips":0,"existed":0,"bad":\["a.com;reboot","300.1.1.1"\]'
+  [ "$(cat "$(etc mine-domains.txt)")" = a.com ]
+  [ ! -s "$(etc mine-ips.txt)" ]
+}
+
+@test "mine add-list: больше 1000 строк — отказ, списки не тронуты" {
+  run sh -c "seq 1 1001 | sed 's/$/.example.com/' | sh '$REPO_ROUTER/usr/bin/domovenok' mine add-list"
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -q '"ok":false'
+  [ ! -s "$(etc mine-domains.txt)" ]
+}
+
 @test "state list применяет правила" {
   echo off > "$(etc state)"
   run cli state list
